@@ -10,10 +10,16 @@ import (
 	"regexp"
 )
 
+const (
+	view_path = "/view/"
+	edit_path = "/edit/"
+	save_path = "/save/"
+)
+
 func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p, err := loadPage(title)
 	if err != nil {
-		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
+		http.Redirect(w, r, edit_path+title, http.StatusFound)
 		return
 	}
 	renderTemplate(w, "view", p)
@@ -35,7 +41,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/view/"+title, http.StatusFound)
+	http.Redirect(w, r, view_path+title, http.StatusFound)
 }
 
 var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
@@ -52,9 +58,9 @@ func wrapHandler(fn func(http.ResponseWriter, *http.Request, string)) http.Handl
 }
 
 func main() {
-	http.HandleFunc("/view/", wrapHandler(viewHandler))
-	http.HandleFunc("/edit/", wrapHandler(editHandler))
-	http.HandleFunc("/save/", wrapHandler(saveHandler))
+	http.HandleFunc(view_path, wrapHandler(viewHandler))
+	http.HandleFunc(edit_path, wrapHandler(editHandler))
+	http.HandleFunc(save_path, wrapHandler(saveHandler))
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

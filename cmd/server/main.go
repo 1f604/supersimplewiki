@@ -44,13 +44,14 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	http.Redirect(w, r, view_path+title, http.StatusFound)
 }
 
-var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
+var validPath = regexp.MustCompile("^/(edit|save|view)/([0-9]+)$")
 
-func wrapHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+func wrapViewEditHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := validPath.FindStringSubmatch(r.URL.Path)
 		if m == nil {
-			http.NotFound(w, r)
+			w.WriteHeader(400)
+			w.Write([]byte("Error: invalid URL format."))
 			return
 		}
 		fn(w, r, m[2])
@@ -58,9 +59,9 @@ func wrapHandler(fn func(http.ResponseWriter, *http.Request, string)) http.Handl
 }
 
 func main() {
-	http.HandleFunc(view_path, wrapHandler(viewHandler))
-	http.HandleFunc(edit_path, wrapHandler(editHandler))
-	http.HandleFunc(save_path, wrapHandler(saveHandler))
+	http.HandleFunc(view_path, wrapViewEditHandler(viewHandler))
+	http.HandleFunc(edit_path, wrapViewEditHandler(editHandler))
+	http.HandleFunc(save_path, wrapViewEditHandler(saveHandler))
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

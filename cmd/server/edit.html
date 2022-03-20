@@ -1,19 +1,18 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
 
 <script>
-function fetchdata(){
+function extend_page_edit_lock(){
  $.ajax({
   url: '/lock_page/{{.Title}}',
   type: 'get',
   success: function(response){
    // Perform operation on the return value
-   //alert(response);
   }
  });
 }
 
 $(document).ready(function(){
- setInterval(fetchdata,1000);
+ setInterval(extend_page_edit_lock,1000);
 });
 </script>
 

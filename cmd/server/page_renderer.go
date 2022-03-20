@@ -13,6 +13,7 @@ import (
 type Page struct {
 	Title string
 	Body  []byte
+	HTML  template.HTML
 }
 
 func (p *Page) save() error {
@@ -26,7 +27,7 @@ func loadPage(title string) (*Page, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Page{Title: title, Body: body}, nil
+	return &Page{Title: title, Body: body, HTML: template.HTML(body)}, nil
 }
 
 var templates = template.Must(template.ParseFiles("edit.html", "view.html"))

@@ -6,42 +6,39 @@ package main
 
 import (
 	"html/template"
-	"log"
 	"net/http"
 	"os"
-	"sync/atomic"
+	"sync"
+	"time"
 )
 
-type ErrLocked struct{}
+var doNotShowEditPage = make(map[string]time.Time)
 
-func (m ErrLocked) Error() string {
-	return "Error: Someone else is already editing the page"
+var grab_mut sync.Mutex
+
+func tryGrabEditLock(pageid string) bool {
+	grab_mut.Lock()
+	defer grab_mut.Unlock()
+
+	locked_until, ok := doNotShowEditPage[pageid]
+	if !ok || locked_until.Before(time.Now()) {
+		doNotShowEditPage[pageid] = time.Now().Add(3 * time.Second)
+		return true
+	}
+
+	return false
 }
 
-var page_edit_lock = make(map[string]*uint32)
-
-func tryGrabLockOnPage(pageid string) error {
-	ptr, ok := page_edit_lock[pageid]
-	if !ok {
-		ptr = new(uint32)
-		page_edit_lock[pageid] = ptr
-	}
-
-	if !atomic.CompareAndSwapUint32(ptr, 0, 1) {
-		return ErrLocked{}
-	}
-	//	defer atomic.StoreUint32(ptr, 0)
-
-	return nil
+func extendEditLock(pageid string) {
+	grab_mut.Lock()
+	defer grab_mut.Unlock()
+	doNotShowEditPage[pageid] = time.Now().Add(3 * time.Second)
 }
 
-func releaseLockOnPage(pageid string) {
-	ptr, ok := page_edit_lock[pageid]
-	if !ok {
-		log.Fatal("page ID not in page lock map")
-	}
-
-	atomic.StoreUint32(ptr, 0)
+func releaseEditLock(pageid string) {
+	grab_mut.Lock()
+	defer grab_mut.Unlock()
+	doNotShowEditPage[pageid] = time.Time{}
 }
 
 type Page struct {

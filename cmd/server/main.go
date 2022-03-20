@@ -14,6 +14,7 @@ const (
 	view_path = "/view/"
 	edit_path = "/edit/"
 	save_path = "/save/"
+	lock_path = "/lock_page/"
 )
 
 func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
@@ -26,10 +27,10 @@ func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 }
 
 func editHandler(w http.ResponseWriter, r *http.Request, title string) {
-	err := tryGrabLockOnPage(title)
-	if err != nil {
+	can_show_edit_page := tryGrabEditLock(title)
+	if !can_show_edit_page {
 		// page is being edited
-		w.Write([]byte("Error: Page is currently being edited by another person."))
+		w.Write([]byte("Error: Someone is currently editing page " + title + "."))
 		return
 	}
 	p, err := loadPage(title)
@@ -47,7 +48,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	releaseLockOnPage(title)
+	releaseEditLock(title)
 	http.Redirect(w, r, view_path+title, http.StatusFound)
 }
 
@@ -65,10 +66,17 @@ func wrapViewEditHandler(fn func(http.ResponseWriter, *http.Request, string)) ht
 	}
 }
 
+func lockpageHandler(w http.ResponseWriter, r *http.Request) {
+	pageid := r.URL.Path[len(lock_path):]
+	extendEditLock(pageid)
+	w.WriteHeader(200)
+}
+
 func main() {
 	http.HandleFunc(view_path, wrapViewEditHandler(viewHandler))
 	http.HandleFunc(edit_path, wrapViewEditHandler(editHandler))
 	http.HandleFunc(save_path, wrapViewEditHandler(saveHandler))
+	http.HandleFunc(lock_path, lockpageHandler)
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

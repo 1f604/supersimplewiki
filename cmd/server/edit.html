@@ -1,3 +1,22 @@
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+
+<script>
+function fetchdata(){
+ $.ajax({
+  url: '/lock_page/{{.Title}}',
+  type: 'get',
+  success: function(response){
+   // Perform operation on the return value
+   //alert(response);
+  }
+ });
+}
+
+$(document).ready(function(){
+ setInterval(fetchdata,1000);
+});
+</script>
+
 <h1>Editing {{.Title}}</h1>
 
 <form action="/save/{{.Title}}" method="POST">

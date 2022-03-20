@@ -26,6 +26,12 @@ func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 }
 
 func editHandler(w http.ResponseWriter, r *http.Request, title string) {
+	err := tryGrabLockOnPage(title)
+	if err != nil {
+		// page is being edited
+		w.Write([]byte("Error: Page is currently being edited by another person."))
+		return
+	}
 	p, err := loadPage(title)
 	if err != nil {
 		p = &Page{Title: title}
@@ -41,6 +47,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	releaseLockOnPage(title)
 	http.Redirect(w, r, view_path+title, http.StatusFound)
 }
 

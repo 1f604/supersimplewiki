@@ -6,9 +6,43 @@ package main
 
 import (
 	"html/template"
+	"log"
 	"net/http"
 	"os"
+	"sync/atomic"
 )
+
+type ErrLocked struct{}
+
+func (m ErrLocked) Error() string {
+	return "Error: Someone else is already editing the page"
+}
+
+var page_edit_lock = make(map[string]*uint32)
+
+func tryGrabLockOnPage(pageid string) error {
+	ptr, ok := page_edit_lock[pageid]
+	if !ok {
+		ptr = new(uint32)
+		page_edit_lock[pageid] = ptr
+	}
+
+	if !atomic.CompareAndSwapUint32(ptr, 0, 1) {
+		return ErrLocked{}
+	}
+	//	defer atomic.StoreUint32(ptr, 0)
+
+	return nil
+}
+
+func releaseLockOnPage(pageid string) {
+	ptr, ok := page_edit_lock[pageid]
+	if !ok {
+		log.Fatal("page ID not in page lock map")
+	}
+
+	atomic.StoreUint32(ptr, 0)
+}
 
 type Page struct {
 	Title string

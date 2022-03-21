@@ -37,20 +37,6 @@ func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 	renderTemplate(w, r, "view", p)
 }
 
-func editHandler(w http.ResponseWriter, r *http.Request, title string) {
-	can_show_edit_page := tryGrabEditLock(title)
-	if !can_show_edit_page {
-		// page is being edited
-		w.Write([]byte("Error: Someone is currently editing page " + title + "."))
-		return
-	}
-	p, err := loadPage(title)
-	if err != nil {
-		p = &Page{Title: title}
-	}
-	renderTemplate(w, r, "edit", p)
-}
-
 func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	body := r.FormValue("body")
 	p := &Page{Title: title, Body: []byte(body)}

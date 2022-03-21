@@ -8,38 +8,7 @@ import (
 	"html/template"
 	"net/http"
 	"os"
-	"sync"
-	"time"
 )
-
-var doNotShowEditPage = make(map[string]time.Time)
-
-var grab_mut sync.Mutex
-
-func tryGrabEditLock(pageid string) bool {
-	grab_mut.Lock()
-	defer grab_mut.Unlock()
-
-	locked_until, ok := doNotShowEditPage[pageid]
-	if !ok || locked_until.Before(time.Now()) {
-		doNotShowEditPage[pageid] = time.Now().Add(3 * time.Second)
-		return true
-	}
-
-	return false
-}
-
-func extendEditLock(pageid string) {
-	grab_mut.Lock()
-	defer grab_mut.Unlock()
-	doNotShowEditPage[pageid] = time.Now().Add(3 * time.Second)
-}
-
-func releaseEditLock(pageid string) {
-	grab_mut.Lock()
-	defer grab_mut.Unlock()
-	doNotShowEditPage[pageid] = time.Time{}
-}
 
 func (p *Page) save() error {
 	filename := os_page_path + p.Title + ".txt"

@@ -7,14 +7,25 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 )
 
 const (
-	view_path = "/view/"
-	edit_path = "/edit/"
-	save_path = "/save/"
-	lock_path = "/lock_page/"
+	static_word  = "public"
+	login_word   = "login"
+	signup_word  = "signup"
+	os_page_path = "./pages/"
+	view_path    = "/view/"
+	edit_path    = "/edit/"
+	save_path    = "/save/"
+	lock_path    = "/lock_page/"
+	login_path1  = "/" + login_word
+	login_path2  = "/" + login_word + "/"
+	signup_path1 = "/" + signup_word
+	signup_path2 = "/" + signup_word + "/"
+	static_path  = "/" + static_word + "/"
 )
 
 func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
@@ -23,7 +34,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 		http.Redirect(w, r, edit_path+title, http.StatusFound)
 		return
 	}
-	renderTemplate(w, "view", p)
+	renderTemplate(w, r, "view", p)
 }
 
 func editHandler(w http.ResponseWriter, r *http.Request, title string) {
@@ -37,7 +48,7 @@ func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 	if err != nil {
 		p = &Page{Title: title}
 	}
-	renderTemplate(w, "edit", p)
+	renderTemplate(w, r, "edit", p)
 }
 
 func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
@@ -66,17 +77,45 @@ func wrapViewEditHandler(fn func(http.ResponseWriter, *http.Request, string)) ht
 	}
 }
 
+// TODO: Add a "page is being edited by user x" message.
 func lockpageHandler(w http.ResponseWriter, r *http.Request) {
 	pageid := r.URL.Path[len(lock_path):]
 	extendEditLock(pageid)
 	w.WriteHeader(200)
 }
 
-func main() {
-	http.HandleFunc(view_path, wrapViewEditHandler(viewHandler))
-	http.HandleFunc(edit_path, wrapViewEditHandler(editHandler))
-	http.HandleFunc(save_path, wrapViewEditHandler(saveHandler))
-	http.HandleFunc(lock_path, lockpageHandler)
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		w.WriteHeader(404)
+		w.Write([]byte("404 page not found"))
+		return
+	}
+	w.Write([]byte("This is the home page."))
+}
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+func main() {
+	// make sure the pages directory exists
+	newpath := filepath.Join(".", "pages")
+	err := os.MkdirAll(newpath, os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	loadPasswordsHashesFromFile()
+	mux := http.NewServeMux()
+
+	mux.HandleFunc(view_path, wrapViewEditHandler(viewHandler))
+	mux.HandleFunc(edit_path, wrapViewEditHandler(editHandler))
+	mux.HandleFunc(save_path, wrapViewEditHandler(saveHandler))
+	mux.HandleFunc(lock_path, lockpageHandler)
+	mux.HandleFunc(login_path1, loginHandler)
+	mux.HandleFunc(login_path2, loginHandler)
+	mux.HandleFunc(signup_path1, signupHandler)
+	mux.HandleFunc(signup_path2, signupHandler)
+	mux.HandleFunc("/", rootHandler)
+
+	fs := http.FileServer(http.Dir(static_word))
+	mux.Handle(static_path, http.StripPrefix(static_path, fs))
+
+	log.Fatal(http.ListenAndServe(":8080", loginchecker{mux}))
 }

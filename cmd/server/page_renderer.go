@@ -41,19 +41,13 @@ func releaseEditLock(pageid string) {
 	doNotShowEditPage[pageid] = time.Time{}
 }
 
-type Page struct {
-	Title string
-	Body  []byte
-	HTML  template.HTML
-}
-
 func (p *Page) save() error {
-	filename := p.Title + ".txt"
+	filename := os_page_path + p.Title + ".txt"
 	return os.WriteFile(filename, p.Body, 0600)
 }
 
 func loadPage(title string) (*Page, error) {
-	filename := title + ".txt"
+	filename := os_page_path + title + ".txt"
 	body, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -63,8 +57,27 @@ func loadPage(title string) (*Page, error) {
 
 var templates = template.Must(template.ParseFiles("edit.html", "view.html"))
 
-func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-	err := templates.ExecuteTemplate(w, tmpl+".html", p)
+type Page struct {
+	Title string
+	Body  []byte
+	HTML  template.HTML
+}
+
+type PageToRender struct {
+	Title    string
+	Body     []byte
+	HTML     template.HTML
+	Username string
+}
+
+func renderTemplate(w http.ResponseWriter, r *http.Request, tmpl string, p *Page) {
+	p2r := PageToRender{
+		Title:    p.Title,
+		Body:     p.Body,
+		HTML:     p.HTML,
+		Username: getUsernameFromRequest(r),
+	}
+	err := templates.ExecuteTemplate(w, tmpl+".html", p2r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

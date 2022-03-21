@@ -58,7 +58,7 @@ func getUsernameFromRequest(r *http.Request) string {
 }
 
 func loadPasswordsHashesFromFile() {
-	f, err := os.OpenFile(password_file_path, os.O_RDONLY|os.O_CREATE, 0666)
+	f, err := os.OpenFile(password_file_path, os.O_RDONLY|os.O_CREATE, 0600)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func loadPasswordsHashesFromFile() {
 
 func storeNewPasswordInFile(username string, passwordhash string) {
 	// If the file doesn't exist, create it, or append to the file
-	f, err := os.OpenFile(password_file_path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(password_file_path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Fatal(err)
 	}

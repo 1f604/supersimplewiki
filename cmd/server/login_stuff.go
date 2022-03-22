@@ -16,7 +16,8 @@ import (
 // if you want to "reset" a password, just delete the line from the passwords.txt file and restart the server
 // then sign up again with that username. It will just change the password to the new one.
 var password_file_path = "passwords.txt" // this file is the single source of truth for user accounts
-var noSubmitOnRefreshJS = `<script src="/` + static_word + `/norefresh.js"></script>`
+var noSubmitOnRefreshJS = `<script src="/` + static_word + `/norefresh.js"></script>
+`
 
 // should probably use argon2 for this...but I don't want to import any external libraries
 func hashPassword(password string) string {
@@ -113,8 +114,6 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 			log.Fatal("ParseForm() err: " + err.Error())
 			return
 		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write([]byte(noSubmitOnRefreshJS))
 
 		username := r.FormValue("username")
 		password1 := r.FormValue("password1")
@@ -123,30 +122,30 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 		// check if username already exists
 		_, ok := passwordHashMap[username]
 		if ok {
-			w.Write([]byte("Error: username is already registered."))
+			writeHTTPNoRefreshResponse(w, 400, "Error: username is already registered.")
 			return
 		}
 		// check passwords match
 		if password1 != password2 {
-			w.Write([]byte("Error: passwords do not match."))
+			writeHTTPNoRefreshResponse(w, 400, "Error: passwords do not match.")
 			return
 		}
 		// check username requirements
 		if !isUsernameValid(username) {
-			w.Write([]byte("Error: username contains invalid characters. Only numbers, letters, and underscore is allowed."))
+			writeHTTPNoRefreshResponse(w, 400, "Error: username contains invalid characters. Only numbers, letters, and underscore is allowed.")
 			return
 		}
 		// check length requirements
 		if len(username) < 2 {
-			w.Write([]byte("Please enter a username of at least length 2."))
+			writeHTTPNoRefreshResponse(w, 400, "Please enter a username of at least length 2.")
 			return
 		}
 		if len(password1) < 2 {
-			w.Write([]byte("Please enter a password of at least length 2."))
+			writeHTTPNoRefreshResponse(w, 400, "Please enter a password of at least length 2.")
 			return
 		}
 		doCreateNewAccount(username, password1)
-		w.Write([]byte("Success! Now you can <a href=\"/login/\">log in</a> with your new account."))
+		writeHTTPNoRefreshResponse(w, 200, "Success! Now you can <a href=\"/login/\">log in</a> with your new account.")
 
 	default:
 		fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
@@ -156,8 +155,8 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 
 func writeLoggedIn(w http.ResponseWriter, r *http.Request) {
 	username := getUsernameFromRequest(r)
-	writeBodyNoRefresh(w, []byte("You are already logged in. You are currently logged in as: "+username))
-	w.Write([]byte("</br>Return to the <a href=\"/\">home page</a>."))
+	msgBody := "You are already logged in. You are currently logged in as: " + username + "</br>Return to the <a href=\"/\">home page</a>."
+	writeHTTPNoRefreshResponse(w, 200, msgBody)
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -184,8 +183,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Check if password hash matches what we have stored
 		if !ok || expectedPasswordHash != actualPasswordHash {
-			w.WriteHeader(http.StatusUnauthorized)
-			writeBodyNoRefresh(w, []byte("Login failed. Wrong username/password."))
+			writeHTTPNoRefreshResponse(w, http.StatusUnauthorized, "Login failed. Wrong username/password.")
 			return
 		}
 
@@ -221,9 +219,7 @@ func (c loginchecker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	writeHeaderNoCache(w)
 	if !noAuthNeededWhitelist[firstpart] {
 		if !validateAuth(r) { // check cookie
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("Not authorized. Please <a href=\"/login\">log in</a> or <a href=\"/signup\">sign up</a>."))
+			writeHTTPNoRefreshResponse(w, http.StatusUnauthorized, "Not authorized. Please <a href=\"/login\">log in</a> or <a href=\"/signup\">sign up</a>.")
 			return
 		}
 	}

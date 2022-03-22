@@ -2,9 +2,11 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/sha1"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -22,6 +24,11 @@ func writeBodyNoRefresh(w http.ResponseWriter, bytes []byte) {
 	w.Write(bytes)
 }
 
+func writeHTTPNoRefreshResponse(w http.ResponseWriter, errorcode int, msg string) {
+	w.WriteHeader(errorcode)
+	writeBodyNoRefresh(w, []byte(msg))
+}
+
 // used for creating new session tokens
 func getRandomStringBASE64() string {
 	c := 24
@@ -33,6 +40,30 @@ func getRandomStringBASE64() string {
 	// The slice should now contain random bytes instead of only zeroes.
 	str := base64.StdEncoding.EncodeToString(b)
 	return str
+}
+
+// used for checking if text was modified
+func getSHA1sum(bytes []byte) string {
+	h := sha1.New()
+	h.Write(bytes)
+	bs := h.Sum(nil)
+	return hex.EncodeToString(bs)
+}
+
+// used to check if file was modified while user was editing it
+func getSHA1sumOfFile(filename string) (string, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := sha1.New()
+	if _, err := io.Copy(h, f); err != nil {
+		log.Fatal("Failed to get checksum of file:", err)
+	}
+
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // used for creating new filenames

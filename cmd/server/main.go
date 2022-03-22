@@ -19,7 +19,7 @@ const (
 	os_page_path = "./pages/"
 	view_path    = "/view/"
 	edit_path    = "/edit/"
-	save_path    = "/save/"
+	update_path  = "/update/"
 	lock_path    = "/lock_page/"
 	login_path1  = "/" + login_word
 	login_path2  = "/" + login_word + "/"
@@ -37,27 +37,13 @@ func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 	renderTemplate(w, r, "view", p)
 }
 
-func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
-	// TODO: Add user credential checks here.
-	body := r.FormValue("body")
-	p := &Page{Title: title, Body: []byte(body)}
-	err := p.save()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	releaseEditLock(title)
-	http.Redirect(w, r, view_path+title, http.StatusFound)
-}
-
-var validPath = regexp.MustCompile("^/(edit|save|view)/([0-9]+)$")
+var validPath = regexp.MustCompile("^/(edit|update|view)/([0-9]+)$")
 
 func wrapViewEditHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := validPath.FindStringSubmatch(r.URL.Path)
 		if m == nil {
-			w.WriteHeader(406)
-			w.Write([]byte("Error: invalid URL format."))
+			writeHTTPNoRefreshResponse(w, 406, "Error: invalid URL format.")
 			return
 		}
 		fn(w, r, m[2])
@@ -72,11 +58,10 @@ func lockpageHandler(w http.ResponseWriter, r *http.Request) {
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		w.WriteHeader(404)
-		w.Write([]byte("404 page not found"))
+		writeHTTPNoRefreshResponse(w, 404, "404 page not found")
 		return
 	}
-	w.Write([]byte("This is the home page."))
+	writeHTTPNoRefreshResponse(w, 200, "This is the home page.")
 }
 
 func main() {
@@ -92,7 +77,7 @@ func main() {
 
 	mux.HandleFunc(view_path, wrapViewEditHandler(viewHandler))
 	mux.HandleFunc(edit_path, wrapViewEditHandler(editHandler))
-	mux.HandleFunc(save_path, wrapViewEditHandler(saveHandler))
+	mux.HandleFunc(update_path, wrapViewEditHandler(updateHandler))
 	mux.HandleFunc(lock_path, lockpageHandler)
 	mux.HandleFunc(login_path1, loginHandler)
 	mux.HandleFunc(login_path2, loginHandler)

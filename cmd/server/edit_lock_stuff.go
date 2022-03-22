@@ -42,14 +42,14 @@ func extendEditLock(pageid string, w http.ResponseWriter, r *http.Request) {
 
 	lockInfoPtr, ok := pageEditLockMap[pageid]
 	if !ok { // Nobody has tried to even edit it yet...so just ignore the request
-		w.WriteHeader(400)
+		writeHTTPNoRefreshResponse(w, 400, "Error: Nobody has tried to edit this page yet.")
 		return
 	}
 
 	username := getUsernameFromRequest(r)
 	// if lock has not expired and the requesting user is different, then ignore the request
 	if lockInfoPtr.Expires.After(time.Now()) && username != lockInfoPtr.Username {
-		w.WriteHeader(400)
+		writeHTTPNoRefreshResponse(w, 400, "Error: User "+lockInfoPtr.Username+" is already editing this page.")
 		return
 	}
 
@@ -62,6 +62,7 @@ func extendEditLock(pageid string, w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 }
 
+// TODO: Fix this!!!
 func releaseEditLock(pageid string) {
 	grab_mut.Lock()
 	defer grab_mut.Unlock()
@@ -73,7 +74,7 @@ func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 	user, can_edit := canShowEditPage(title, r)
 	if !can_edit {
 		// page is being edited
-		w.Write([]byte("Error: User " + user + " is currently editing page " + title + "."))
+		writeHTTPNoRefreshResponse(w, 400, "Error: User "+user+" is currently editing page "+title+".")
 		return
 	}
 	p, err := loadPage(title)

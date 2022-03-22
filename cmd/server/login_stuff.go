@@ -222,7 +222,7 @@ func (c loginchecker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !noAuthNeededWhitelist[firstpart] {
 		if !validateAuth(r) { // check cookie
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.WriteHeader(400)
+			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte("Not authorized. Please <a href=\"/login\">log in</a> or <a href=\"/signup\">sign up</a>."))
 			return
 		}

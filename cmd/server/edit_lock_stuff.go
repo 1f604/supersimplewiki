@@ -1,0 +1,84 @@
+package main
+
+import (
+	"net/http"
+	"sync"
+	"time"
+)
+
+var pageEditLockMap = make(map[string]*EditLockInfo)
+
+var grab_mut sync.Mutex
+
+type EditLockInfo struct {
+	Expires  time.Time
+	Username string
+}
+
+func canShowEditPage(pageid string, r *http.Request) (string, bool) {
+	grab_mut.Lock()
+	defer grab_mut.Unlock()
+
+	username := getUsernameFromRequest(r)
+
+	lockInfoPtr, ok := pageEditLockMap[pageid]
+
+	if !ok || lockInfoPtr.Expires.Before(time.Now()) { // it's not currently locked, so lock it
+		lockInfo := EditLockInfo{
+			Expires:  time.Now().Add(3 * time.Second),
+			Username: username,
+		}
+		pageEditLockMap[pageid] = &lockInfo
+		return "NULL", true
+	}
+
+	// It is currently locked, so return false
+	return lockInfoPtr.Username, false
+}
+
+func extendEditLock(pageid string, w http.ResponseWriter, r *http.Request) {
+	grab_mut.Lock()
+	defer grab_mut.Unlock()
+
+	lockInfoPtr, ok := pageEditLockMap[pageid]
+	if !ok { // Nobody has tried to even edit it yet...so just ignore the request
+		w.WriteHeader(400)
+		return
+	}
+
+	username := getUsernameFromRequest(r)
+	// if lock has not expired and the requesting user is different, then ignore the request
+	if lockInfoPtr.Expires.After(time.Now()) && username != lockInfoPtr.Username {
+		w.WriteHeader(400)
+		return
+	}
+
+	// otherwise, extend the lock time with the requesting user
+	lockInfo := EditLockInfo{
+		Expires:  time.Now().Add(3 * time.Second),
+		Username: username,
+	}
+	pageEditLockMap[pageid] = &lockInfo
+	w.WriteHeader(200)
+}
+
+func releaseEditLock(pageid string) {
+	grab_mut.Lock()
+	defer grab_mut.Unlock()
+	ptr := pageEditLockMap[pageid]
+	ptr.Expires = time.Time{}
+}
+
+func editHandler(w http.ResponseWriter, r *http.Request, title string) {
+	user, can_edit := canShowEditPage(title, r)
+	if !can_edit {
+		// page is being edited
+		w.Write([]byte("Error: User " + user + " is currently editing page " + title + "."))
+		return
+	}
+	p, err := loadPage(title)
+	if err != nil {
+		p = &Page{Title: title}
+	}
+	renderTemplate(w, r, "edit", p)
+}

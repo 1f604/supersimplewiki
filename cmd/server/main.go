@@ -38,6 +38,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 }
 
 func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
+	// TODO: Add user credential checks here.
 	body := r.FormValue("body")
 	p := &Page{Title: title, Body: []byte(body)}
 	err := p.save()
@@ -55,7 +56,7 @@ func wrapViewEditHandler(fn func(http.ResponseWriter, *http.Request, string)) ht
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := validPath.FindStringSubmatch(r.URL.Path)
 		if m == nil {
-			w.WriteHeader(400)
+			w.WriteHeader(406)
 			w.Write([]byte("Error: invalid URL format."))
 			return
 		}
@@ -66,8 +67,7 @@ func wrapViewEditHandler(fn func(http.ResponseWriter, *http.Request, string)) ht
 // TODO: Add a "page is being edited by user x" message.
 func lockpageHandler(w http.ResponseWriter, r *http.Request) {
 	pageid := r.URL.Path[len(lock_path):]
-	extendEditLock(pageid)
-	w.WriteHeader(200)
+	extendEditLock(pageid, w, r)
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {

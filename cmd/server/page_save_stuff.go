@@ -36,5 +36,6 @@ func updateHandler(w http.ResponseWriter, r *http.Request, title string) {
 		return
 	}
 	releaseEditLock(title)
-	http.Redirect(w, r, view_path+title, http.StatusFound)
+	writeHTTPNoRefreshResponse(w, 200, "Page successfully updated!")
+	//	http.Redirect(w, r, view_path+title, http.StatusFound)
 }

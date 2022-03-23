@@ -43,6 +43,7 @@ func renderTemplate(w http.ResponseWriter, r *http.Request, tmpl string, p *Page
 		Username: getUsernameFromRequest(r),
 		Checksum: getSHA1sum(p.Body),
 	}
+	w.Header().Set("Content-Type", "text/html") // apparently this is required if your HTML is not valid.
 	err := templates.ExecuteTemplate(w, tmpl+".html", p2r)
 	if err != nil {
 		writeHTTPNoRefreshResponse(w, http.StatusInternalServerError, err.Error())

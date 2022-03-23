@@ -1,12 +1,39 @@
+<link rel="stylesheet" href="/public/editpage.css">
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
 
 <script>
+function genHexString(len) {
+    const hex = '0123456789abcdef';
+    let output = '';
+    var array = new Uint32Array(8);
+    self.crypto.getRandomValues(array);
+    for (const number of array){
+        output += hex.charAt(number % hex.length);
+    }
+    return output;
+}
+
+function show_error_message(data, textStatus, jqXHR, errorThrown){
+    $('.failmsg').remove();
+    $('#emptydiv').append(`
+    <div class="failmsg">
+        ERROR: Update request failed.</br>
+        Data: ${data}</br>
+        textStatus: ${textStatus}</br>
+        Response code: ${jqXHR.status}</br>
+        Response body: ${jqXHR.responseText}</br>
+        Error thrown: ${errorThrown}
+    </div>
+    `);    
+}
 
 function bind_function_to_button() {
     $('#btnSubmit').click(function() {
-        alert("clicked!");
+        randomHexString = genHexString();
+        var expected_response = "Request "+randomHexString+" was successfully executed.";
         var inputVal = $('#bodyfield').val();
         var ocsum = $('#hidden_csum').val();
+
         $.ajax
         ({
             type: "POST",
@@ -15,14 +42,18 @@ function bind_function_to_button() {
             data: {
                body: inputVal,
                OriginalChecksum: ocsum,
+               requestID : randomHexString,
             },
         })
-        .done(function(data, textStatus, jqXHR) { // request successful
-            console.log("Response data:" + data);
-            alert("Success! Response code: " + jqXHR.status);
+        .done(function(data, textStatus, jqXHR) {
+            if (data === expected_response) { // request successful
+                location.href = "/view/{{.Title}}";
+            } else { // request failed
+                show_error_message(data, textStatus, jqXHR, "");
+            }
         })
         .fail(function (jqXHR, textStatus, errorThrown) { // request failed
-            alert("AJAX query failed! textStatus:" + textStatus + " HTTP error code: " + errorThrown);
+            show_error_message("", textStatus, jqXHR, errorThrown);
         });
     });
 }
@@ -41,7 +72,6 @@ $(document).ready(function(){
  setInterval(extend_page_edit_lock,1000);
 
  bind_function_to_button();
-
 });
 </script>
 
@@ -53,4 +83,5 @@ $(document).ready(function(){
 
 <div><textarea id="bodyfield" rows="20" cols="80">{{printf "%s" .Body}}</textarea></div>
 <div><input type="hidden" id="hidden_csum" value="{{.Checksum}}" /></div>
+<div id = "emptydiv"></div>
 <div> <button id = "btnSubmit" type="button">Update</button></div>

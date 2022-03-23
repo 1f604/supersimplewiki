@@ -1,0 +1,12 @@
+.failmsg {
+    display: inline-block;
+
+    background-color: #fce4e4;
+    border: 1px solid #fcc2c3;
+    padding: 20px 20px;    
+
+    color: #cc0033;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 30px;
+    font-weight: bold;
+}

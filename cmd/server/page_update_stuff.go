@@ -14,6 +14,7 @@ func updateHandler(w http.ResponseWriter, r *http.Request, title string) {
 	// TODO: Add user credential checks here.
 	filename := os_page_path + title + ".txt"
 	actual_csum, err := getSHA1sumOfFile(filename)
+	requestID := r.FormValue("requestID")
 
 	// 1. if page doesn't exist, then don't update it.
 	if err != nil {
@@ -36,6 +37,6 @@ func updateHandler(w http.ResponseWriter, r *http.Request, title string) {
 		return
 	}
 	releaseEditLock(title)
-	writeHTTPNoRefreshResponse(w, 200, "Page successfully updated!")
+	writeHTTPResponse(w, 200, "Request "+requestID+" was successfully executed.")
 	//	http.Redirect(w, r, view_path+title, http.StatusFound)
 }

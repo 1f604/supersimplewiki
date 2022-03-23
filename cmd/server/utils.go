@@ -24,6 +24,11 @@ func writeBodyNoRefresh(w http.ResponseWriter, bytes []byte) {
 	w.Write(bytes)
 }
 
+func writeHTTPResponse(w http.ResponseWriter, errorcode int, msg string) {
+	w.WriteHeader(errorcode)
+	w.Write([]byte(msg))
+}
+
 func writeHTTPNoRefreshResponse(w http.ResponseWriter, errorcode int, msg string) {
 	w.WriteHeader(errorcode)
 	writeBodyNoRefresh(w, []byte(msg))

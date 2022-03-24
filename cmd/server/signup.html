@@ -2,17 +2,38 @@
 <html>
 <head>
   <meta charset="UTF-8" />
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+  <script type="text/javascript">
+    $(document).ready(function(){
+
+      let startYear = new Date().getFullYear() - 120;
+        let endYear = new Date().getFullYear();
+        for (i = startYear; i < endYear; i++)
+        {
+          $('#birthyear').append($('<option />').val(i).html(i));
+        }
+
+    });
+  </script>
 </head>
+
 <body>
 <div>
   <h1>Sign up</h1>
-  <form method="POST" action="/signup/">     
+  <form method="POST" action="/signup/" id="signupform">
       <label>Username</label><input name="username" type="text" value="" />
   </br>
       <label>Password</label><input name="password1" type="password" value="" />
     </br>
     <label>Confirm Password</label><input name="password2" type="password" value="" />
   </br>
+  <label>Real name</label><input name="realname" type="text" value="" />
+</br>
+<label for="birthyear">Year of birth</label>
+<select name="birthyear" id="birthyear" form="signupform">
+</select>
+</br>
       <input type="submit" value="submit" />
     </br>
   </form>

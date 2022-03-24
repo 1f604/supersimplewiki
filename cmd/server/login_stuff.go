@@ -13,6 +13,15 @@ import (
 	"time"
 )
 
+var passwordRegex = regexp.MustCompile(`^(?P<Username>[a-z0-9_]+) (?P<PwdHash>[a-zA-Z0-9+/=]+) activated:(?P<Activated>true|false) birthyear:(?P<BirthYear>[0-9]+) realname:(?P<RealName>[a-zA-Z ]+)$`)
+
+type UserInfo struct {
+	PwdHash   string
+	Activated bool
+	RealName  string
+	BirthYear string
+}
+
 // if you want to "reset" a password, just delete the line from the passwords.txt file and restart the server
 // then sign up again with that username. It will just change the password to the new one.
 var password_file_path = "passwords.txt" // this file is the single source of truth for user accounts
@@ -26,8 +35,8 @@ func hashPassword(password string) string {
 	return str
 }
 
-var passwordHashMap = map[string]string{} //maps usernames to passwords
-var tokenMap = map[string]string{}        //maps session tokens to usernames
+var userInfoMap = map[string]UserInfo{} //maps usernames to account info
+var tokenMap = map[string]string{}      //maps session tokens to usernames
 
 type loginchecker struct {
 	h http.Handler
@@ -68,34 +77,60 @@ func loadPasswordsHashesFromFile() {
 	fscanner := bufio.NewScanner(f)
 	for fscanner.Scan() {
 		line := fscanner.Text()
-		words := strings.Fields(line)
-		if len(words) != 2 {
+		if !passwordRegex.Match([]byte(line)) {
+			log.Fatal("Failed to match password regex")
+		}
+		capturedGroups := passwordRegex.FindStringSubmatch(line)
+		if len(capturedGroups) != 6 {
 			log.Fatal("Unexpected password file format.")
 		}
-		username := words[0]
-		pwdhash := words[1]
-		passwordHashMap[username] = pwdhash
+		username := capturedGroups[1]
+		pwdhash := capturedGroups[2]
+		activated := capturedGroups[3] == "true" // the regex only allows "true" or "false"
+		birthyear := capturedGroups[4]
+		realname := capturedGroups[5]
+
+		userInfoMap[username] = UserInfo{
+			PwdHash:   pwdhash,
+			RealName:  realname,
+			BirthYear: birthyear,
+			Activated: activated,
+		}
 	}
 }
 
-func storeNewPasswordInFile(username string, passwordhash string) {
+func doCreateNewAccount(username string, password string, realname string, birthyear string) {
+	passwordhash := hashPassword(password)
+	userInfoMap[username] = UserInfo{
+		PwdHash:   passwordhash,
+		Activated: false,
+		RealName:  realname,
+		BirthYear: birthyear,
+	}
+
 	// If the file doesn't exist, create it, or append to the file
 	f, err := os.OpenFile(password_file_path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer f.Close()
-	f.Write([]byte(username + " " + passwordhash + "\n"))
-}
 
-func doCreateNewAccount(username string, password string) {
-	passwordhash := hashPassword(password)
-	passwordHashMap[username] = passwordhash
-	storeNewPasswordInFile(username, passwordhash)
+	line := username + " " + passwordhash + " activated:false birthyear:" + birthyear + " realname:" + realname + "\n"
+	f.Write([]byte(line))
 }
 
 func isUsernameValid(u string) bool {
 	usernameRegex := regexp.MustCompile(`^[a-z0-9_]+$`)
+	return usernameRegex.MatchString(u)
+}
+
+func isRealnameValid(u string) bool {
+	usernameRegex := regexp.MustCompile(`^[a-zA-Z ]+$`)
+	return usernameRegex.MatchString(u)
+}
+
+func isBirthyearValid(u string) bool {
+	usernameRegex := regexp.MustCompile(`^\d{4}$`)
 	return usernameRegex.MatchString(u)
 }
 
@@ -118,9 +153,11 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 		username := r.FormValue("username")
 		password1 := r.FormValue("password1")
 		password2 := r.FormValue("password2")
+		realname := r.FormValue("realname")
+		birthyear := r.FormValue("birthyear")
 
 		// check if username already exists
-		_, ok := passwordHashMap[username]
+		_, ok := userInfoMap[username]
 		if ok {
 			writeHTTPNoRefreshResponse(w, 400, "Error: username is already registered.")
 			return
@@ -135,6 +172,16 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 			writeHTTPNoRefreshResponse(w, 400, "Error: username contains invalid characters. Only numbers, letters, and underscore is allowed.")
 			return
 		}
+		// check name requirements
+		if !isRealnameValid(realname) {
+			writeHTTPNoRefreshResponse(w, 400, "Error: real name contains invalid characters. Only letters and spaces are allowed.")
+			return
+		}
+		// check year requirements
+		if !isBirthyearValid(birthyear) {
+			writeHTTPNoRefreshResponse(w, 400, "Error: invalid birth year.")
+			return
+		}
 		// check length requirements
 		if len(username) < 2 {
 			writeHTTPNoRefreshResponse(w, 400, "Please enter a username of at least length 2.")
@@ -144,7 +191,11 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 			writeHTTPNoRefreshResponse(w, 400, "Please enter a password of at least length 2.")
 			return
 		}
-		doCreateNewAccount(username, password1)
+		if len(realname) < 2 {
+			writeHTTPNoRefreshResponse(w, 400, "Please enter a real name of at least length 2.")
+			return
+		}
+		doCreateNewAccount(username, password1, realname, birthyear)
 		writeHTTPNoRefreshResponse(w, 200, "Success! Now you can <a href=\"/login/\">log in</a> with your new account.")
 
 	default:
@@ -178,12 +229,19 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		password := r.FormValue("password")
 
 		// Get the expected password from our in memory map
-		expectedPasswordHash, ok := passwordHashMap[username]
+		storedUserInfo, ok := userInfoMap[username]
+		expectedPasswordHash := storedUserInfo.PwdHash
 		actualPasswordHash := hashPassword(password)
 
 		// Check if password hash matches what we have stored
 		if !ok || expectedPasswordHash != actualPasswordHash {
 			writeHTTPNoRefreshResponse(w, http.StatusUnauthorized, "Login failed. Wrong username/password.")
+			return
+		}
+
+		// Check if user account is activated
+		if !storedUserInfo.Activated {
+			writeHTTPNoRefreshResponse(w, http.StatusUnauthorized, "Login failed. Account not activated.")
 			return
 		}
 

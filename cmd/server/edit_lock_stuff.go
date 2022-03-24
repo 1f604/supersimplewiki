@@ -62,11 +62,14 @@ func extendEditLock(pageid string, w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 }
 
-// TODO: Fix this!!!
 func releaseEditLock(pageid string) {
+	// user credential checks are done in updateHandler.
 	grab_mut.Lock()
 	defer grab_mut.Unlock()
-	ptr := pageEditLockMap[pageid]
+	ptr, ok := pageEditLockMap[pageid] // need to check for nil pointer dereference here
+	if !ok {                           // If trying to release lock for page that is not locked
+		return // just do nothing, since there is no lock to release
+	}
 	ptr.Expires = time.Time{}
 }
 

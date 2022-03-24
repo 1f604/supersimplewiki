@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"os"
+	"time"
 )
 
 func (p *Page) update() error {
@@ -11,7 +12,6 @@ func (p *Page) update() error {
 }
 
 func updateHandler(w http.ResponseWriter, r *http.Request, title string) {
-	// TODO: Add user credential checks here.
 	filename := os_page_path + title + ".txt"
 	actual_csum, err := getSHA1sumOfFile(filename)
 	requestID := r.FormValue("requestID")
@@ -28,7 +28,20 @@ func updateHandler(w http.ResponseWriter, r *http.Request, title string) {
 		return
 	}
 
-	// 3. Otherwise, since the checksums match, try to update it.
+	// 3. check if the page is currently locked for editing.
+	ptr, ok := pageEditLockMap[title]
+	if !ok || ptr.Expires.Before(time.Now()) {
+		// 3a. if page is not locked, or lock has expired, we can go ahead and edit it.
+		goto tryToUpdate
+	}
+	// 3b. otherwise, if the user does not have edit lock, don't allow the update
+	if getUsernameFromRequest(r) != ptr.Username {
+		writeHTTPNoRefreshResponse(w, 400, "Error: Failed to update page "+title+", because user "+ptr.Username+" is currently editing it.")
+		return
+	}
+
+	// Otherwise, since the checksums match, try to update it.
+tryToUpdate:
 	body := r.FormValue("body")
 	p := &Page{Title: title, Body: []byte(body)}
 	err = p.update()
@@ -38,5 +51,4 @@ func updateHandler(w http.ResponseWriter, r *http.Request, title string) {
 	}
 	releaseEditLock(title)
 	writeHTTPResponse(w, 200, "Request "+requestID+" was successfully executed.")
-	//	http.Redirect(w, r, view_path+title, http.StatusFound)
 }

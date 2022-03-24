@@ -50,7 +50,6 @@ func wrapViewEditHandler(fn func(http.ResponseWriter, *http.Request, string)) ht
 	}
 }
 
-// TODO: Add a "page is being edited by user x" message.
 func lockpageHandler(w http.ResponseWriter, r *http.Request) {
 	pageid := r.URL.Path[len(lock_path):]
 	extendEditLock(pageid, w, r)

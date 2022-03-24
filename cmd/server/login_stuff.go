@@ -275,7 +275,8 @@ var noAuthNeededWhitelist = map[string]bool{
 func (c loginchecker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	firstpart := strings.Split(r.URL.Path, "/")[1]
 	writeHeaderNoCache(w)
-	if !noAuthNeededWhitelist[firstpart] {
+	_, ok := noAuthNeededWhitelist[firstpart]
+	if !ok {
 		if !validateAuth(r) { // check cookie
 			writeHTTPNoRefreshResponse(w, http.StatusUnauthorized, "Not authorized. Please <a href=\"/login\">log in</a> or <a href=\"/signup\">sign up</a>.")
 			return

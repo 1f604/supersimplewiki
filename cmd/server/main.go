@@ -5,7 +5,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -63,7 +65,21 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	writeHTTPNoRefreshResponse(w, 200, "This is the home page.")
 }
 
+const (
+	lNet  = "tcp"
+	lAddr = ":12345"
+)
+
 func main() {
+	if _, err := net.Listen(lNet, lAddr); err != nil {
+		fmt.Println("Another instance of supersimplewiki is currently running!")
+		return
+	}
+
+	// Start Unix domain socket listener
+	go startUnixDomainServer()
+	fmt.Println("Unix domain server launched...")
+
 	// make sure the pages directory exists
 	newpath := filepath.Join(".", "pages")
 	err := os.MkdirAll(newpath, os.ModePerm)

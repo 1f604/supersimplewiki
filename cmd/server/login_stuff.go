@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -35,8 +36,8 @@ func hashPassword(password string) string {
 	return str
 }
 
-var userInfoMap = map[string]UserInfo{} //maps usernames to account info
-var tokenMap = map[string]string{}      //maps session tokens to usernames
+var userInfoMap = map[string]*UserInfo{} //maps usernames to account info
+var tokenMap = map[string]string{}       //maps session tokens to usernames
 
 type loginchecker struct {
 	h http.Handler
@@ -67,6 +68,59 @@ func getUsernameFromRequest(r *http.Request) string {
 	return username
 }
 
+// Currently, you can activate a user in 2 ways:
+// 1. Update the passwords.txt file and then restart the server.
+// 2. Use the command line client. This way you don't have to restart the server.
+func activateUser(ptr *UserInfo, username_to_activate string) bool {
+	ptr.Activated = true
+
+	// now find the user's record in the file and update it to say that the user is activated
+	// just read the whole contents of the file, find the line, and write it back
+	input, err := ioutil.ReadFile(password_file_path)
+	if err != nil { // this should never happen
+		log.Println("ERROR: Failed to open password file to activate user.")
+		return false
+	}
+	lines := strings.Split(string(input), "\n")
+	for i, line := range lines {
+		// skip empty lines
+		if len(line) < 2 {
+			continue
+		}
+		if !passwordRegex.Match([]byte(line)) { // this should never happen
+			log.Println("ERROR: Line in password file failed to match regex to activate user.")
+			return false
+		}
+		capturedGroups := passwordRegex.FindStringSubmatch(line)
+		if len(capturedGroups) != 6 {
+			log.Fatal("Unexpected password file format.")
+		}
+		username := capturedGroups[1]
+		if username != username_to_activate {
+			continue // go to next line
+		} else { // update the line
+			pwdhash := capturedGroups[2]
+			birthyear := capturedGroups[4]
+			realname := capturedGroups[5]
+			newline := username + " " + pwdhash + " activated:true birthyear:" + birthyear + " realname:" + realname // + "\n"
+			lines[i] = newline
+			goto userFound
+		}
+	}
+	log.Println("ERROR: Failed to find user in password file.")
+	return false
+
+userFound: // now write the new contents back to the file
+	output := strings.Join(lines, "\n")
+	err = ioutil.WriteFile(password_file_path, []byte(output), 0600)
+	if err != nil {
+		log.Println("ERROR: Failed to update password file with activated user.")
+		return false
+	}
+
+	return true
+}
+
 func loadPasswordsHashesFromFile() {
 	f, err := os.OpenFile(password_file_path, os.O_RDONLY|os.O_CREATE, 0600)
 	if err != nil {
@@ -90,7 +144,7 @@ func loadPasswordsHashesFromFile() {
 		birthyear := capturedGroups[4]
 		realname := capturedGroups[5]
 
-		userInfoMap[username] = UserInfo{
+		userInfoMap[username] = &UserInfo{
 			PwdHash:   pwdhash,
 			RealName:  realname,
 			BirthYear: birthyear,
@@ -101,7 +155,7 @@ func loadPasswordsHashesFromFile() {
 
 func doCreateNewAccount(username string, password string, realname string, birthyear string) {
 	passwordhash := hashPassword(password)
-	userInfoMap[username] = UserInfo{
+	userInfoMap[username] = &UserInfo{
 		PwdHash:   passwordhash,
 		Activated: false,
 		RealName:  realname,

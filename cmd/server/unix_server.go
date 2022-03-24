@@ -23,6 +23,9 @@ func cleanupUnixDomainSocket() {
 	}
 }
 
+// Currently all this server does is to listen to activate user requests
+// But you can already do that by editing the passwords file directly
+// In future I will add more commands to make this server more useful.
 func startUnixDomainServer() {
 	cleanupUnixDomainSocket()
 	UnixListener, err := net.Listen(unixDomainProtocol, unixSockAddr)

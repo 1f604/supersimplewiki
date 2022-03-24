@@ -19,7 +19,7 @@ const (
 func sendMsgToServer(msg string) {
 	conn, err := net.Dial(unixDomainProtocol, unixSockAddr)
 	if err != nil {
-		panic(err)
+		log.Fatal("Connection refused. Is the server running?")
 	}
 	defer conn.Close()
 
@@ -41,6 +41,9 @@ func sendMsgToServer(msg string) {
 	fmt.Println(string(b))
 }
 
+// This client is just a dumb terminal.
+// If you want to add new commands, you just have to modify the server.
+// You don't need to modify this client when you want to add new commands.
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("supersimplewiki client")

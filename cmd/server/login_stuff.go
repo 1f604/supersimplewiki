@@ -69,8 +69,8 @@ func getUsernameFromRequest(r *http.Request) string {
 }
 
 // Currently, you can activate a user in 2 ways:
-// 1. Update the passwords.txt file and then restart the server.
-// 2. Use the command line client. This way you don't have to restart the server.
+// 1. Update the passwords.txt file manually. You don't have to restart the server.
+// 2. Use the command line client. You don't have to restart the server.
 func activateUser(ptr *UserInfo, username_to_activate string) bool {
 	ptr.Activated = true
 
@@ -128,9 +128,14 @@ func loadPasswordsHashesFromFile() {
 	}
 	defer f.Close()
 
+	userInfoMap = map[string]*UserInfo{} // clear the in-memory map every time someone signs up
 	fscanner := bufio.NewScanner(f)
 	for fscanner.Scan() {
 		line := fscanner.Text()
+		// ignore empty lines
+		if len(line) < 2 {
+			continue
+		}
 		if !passwordRegex.Match([]byte(line)) {
 			log.Fatal("Failed to match password regex")
 		}
@@ -211,6 +216,7 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 		birthyear := r.FormValue("birthyear")
 
 		// check if username already exists
+		loadPasswordsHashesFromFile() // clear the in memory map and reload from file
 		_, ok := userInfoMap[username]
 		if ok {
 			writeHTTPNoRefreshResponse(w, 400, "Error: username is already registered.")
@@ -282,6 +288,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		username := r.FormValue("username")
 		password := r.FormValue("password")
 
+		loadPasswordsHashesFromFile() // clear the in memory map and reload from file
 		// Get the expected password from our in memory map
 		storedUserInfo, ok := userInfoMap[username]
 		expectedPasswordHash := storedUserInfo.PwdHash

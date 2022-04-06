@@ -15,4 +15,3 @@ $ git clone git@github.com:1f604/supersimplewiki.git
 $ cd supersimplewiki/dependencies/hoedownv3.08/
 $ make
 ```
-

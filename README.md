@@ -15,3 +15,19 @@ $ git clone git@github.com:1f604/supersimplewiki.git
 $ cd supersimplewiki/dependencies/hoedownv3.08/
 $ make
 ```
+
+Verify that the compilation has succeeded by checking that there is a `hoedown` binary in the `supersimplewiki/dependencies/hoedownv3.08/` directory. Check the version by typing this command:
+
+```
+$ ./hoedown --version
+```
+
+It should print this:
+
+```
+Built with Hoedown 3.0.7.
+```
+
+## Step 3. ???
+
+## Step 4. Profit!

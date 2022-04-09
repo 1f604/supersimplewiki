@@ -290,12 +290,17 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 		loadPasswordsHashesFromFile() // clear the in memory map and reload from file
 		// Get the expected password from our in memory map
+		// Check user exists
 		storedUserInfo, ok := userInfoMap[username]
+		if !ok {
+			writeHTTPNoRefreshResponse(w, http.StatusUnauthorized, "Login failed. User does not exist.")
+			return
+		}
+
+		// Check user's password matches what we have stored
 		expectedPasswordHash := storedUserInfo.PwdHash
 		actualPasswordHash := hashPassword(password)
-
-		// Check if password hash matches what we have stored
-		if !ok || expectedPasswordHash != actualPasswordHash {
+		if expectedPasswordHash != actualPasswordHash {
 			writeHTTPNoRefreshResponse(w, http.StatusUnauthorized, "Login failed. Wrong username/password.")
 			return
 		}

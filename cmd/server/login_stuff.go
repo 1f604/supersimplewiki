@@ -12,6 +12,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/1f604/supersimplewiki/cmd/server/globals"
+	util "github.com/1f604/supersimplewiki/cmd/server/util"
 )
 
 var passwordRegex = regexp.MustCompile(`^(?P<Username>[a-z0-9_]+) (?P<PwdHash>[a-zA-Z0-9+/=]+) activated:(?P<Activated>true|false) birthyear:(?P<BirthYear>[0-9]+) realname:(?P<RealName>[a-zA-Z ]+)$`)
@@ -26,8 +29,6 @@ type UserInfo struct {
 // if you want to "reset" a password, just delete the line from the passwords.txt file and restart the server
 // then sign up again with that username. It will just change the password to the new one.
 var password_file_path = "passwords.txt" // this file is the single source of truth for user accounts
-var noSubmitOnRefreshJS = `<script src="/` + static_word + `/norefresh.js"></script>
-`
 
 // should probably use argon2 for this...but I don't want to import any external libraries
 func hashPassword(password string) string {
@@ -37,7 +38,6 @@ func hashPassword(password string) string {
 }
 
 var userInfoMap = map[string]*UserInfo{} //maps usernames to account info
-var tokenMap = map[string]string{}       //maps session tokens to usernames
 
 type loginchecker struct {
 	h http.Handler
@@ -50,22 +50,8 @@ func validateAuth(r *http.Request) bool {
 		return false
 	}
 	sessionToken := c.Value
-	_, ok := tokenMap[sessionToken]
+	_, ok := globals.TokenMap[sessionToken]
 	return ok
-}
-
-// This function assumes the user is already logged in.
-func getUsernameFromRequest(r *http.Request) string {
-	c, err := r.Cookie("session_token")
-	if err != nil {
-		log.Fatal("Failed to get session token")
-	}
-	sessionToken := c.Value
-	username, ok := tokenMap[sessionToken]
-	if !ok {
-		log.Fatal("Failed to get username from session token")
-	}
-	return username
 }
 
 // Currently, you can activate a user in 2 ways:
@@ -201,7 +187,7 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
-		http.ServeFile(w, r, "signup.html")
+		http.ServeFile(w, r, "./public_assets/signup.html")
 	case "POST":
 		// parse the form
 		if err := r.ParseForm(); err != nil {
@@ -219,44 +205,44 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 		loadPasswordsHashesFromFile() // clear the in memory map and reload from file
 		_, ok := userInfoMap[username]
 		if ok {
-			writeHTTPNoRefreshResponse(w, 400, "Error: username is already registered.")
+			util.WriteHTTPNoRefreshResponse(w, 400, "Error: username is already registered.")
 			return
 		}
 		// check passwords match
 		if password1 != password2 {
-			writeHTTPNoRefreshResponse(w, 400, "Error: passwords do not match.")
+			util.WriteHTTPNoRefreshResponse(w, 400, "Error: passwords do not match.")
 			return
 		}
 		// check username requirements
 		if !isUsernameValid(username) {
-			writeHTTPNoRefreshResponse(w, 400, "Error: username contains invalid characters. Only numbers, letters, and underscore is allowed.")
+			util.WriteHTTPNoRefreshResponse(w, 400, "Error: username contains invalid characters. Only numbers, letters, and underscore is allowed.")
 			return
 		}
 		// check name requirements
 		if !isRealnameValid(realname) {
-			writeHTTPNoRefreshResponse(w, 400, "Error: real name contains invalid characters. Only letters and spaces are allowed.")
+			util.WriteHTTPNoRefreshResponse(w, 400, "Error: real name contains invalid characters. Only letters and spaces are allowed.")
 			return
 		}
 		// check year requirements
 		if !isBirthyearValid(birthyear) {
-			writeHTTPNoRefreshResponse(w, 400, "Error: invalid birth year.")
+			util.WriteHTTPNoRefreshResponse(w, 400, "Error: invalid birth year.")
 			return
 		}
 		// check length requirements
 		if len(username) < 2 {
-			writeHTTPNoRefreshResponse(w, 400, "Please enter a username of at least length 2.")
+			util.WriteHTTPNoRefreshResponse(w, 400, "Please enter a username of at least length 2.")
 			return
 		}
 		if len(password1) < 2 {
-			writeHTTPNoRefreshResponse(w, 400, "Please enter a password of at least length 2.")
+			util.WriteHTTPNoRefreshResponse(w, 400, "Please enter a password of at least length 2.")
 			return
 		}
 		if len(realname) < 2 {
-			writeHTTPNoRefreshResponse(w, 400, "Please enter a real name of at least length 2.")
+			util.WriteHTTPNoRefreshResponse(w, 400, "Please enter a real name of at least length 2.")
 			return
 		}
 		doCreateNewAccount(username, password1, realname, birthyear)
-		writeHTTPNoRefreshResponse(w, 200, "Success! Now you can <a href=\"/login/\">log in</a> with your new account.")
+		util.WriteHTTPNoRefreshResponse(w, 200, "Success! Now you can <a href=\"/login/\">log in</a> with your new account.")
 
 	default:
 		fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
@@ -265,9 +251,9 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func writeLoggedIn(w http.ResponseWriter, r *http.Request) {
-	username := getUsernameFromRequest(r)
+	username := util.GetUsernameFromRequest(r)
 	msgBody := "You are already logged in. You are currently logged in as: " + username + "</br>Return to the <a href=\"/\">home page</a>."
-	writeHTTPNoRefreshResponse(w, 200, msgBody)
+	util.WriteHTTPNoRefreshResponse(w, 200, msgBody)
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -278,7 +264,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
-		http.ServeFile(w, r, "login.html")
+		http.ServeFile(w, r, "./public_assets/login.html")
 	case "POST":
 		// parse the form
 		if err := r.ParseForm(); err != nil {
@@ -293,7 +279,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		// Check user exists
 		storedUserInfo, ok := userInfoMap[username]
 		if !ok {
-			writeHTTPNoRefreshResponse(w, http.StatusUnauthorized, "Login failed. Username does not exist.")
+			util.WriteHTTPNoRefreshResponse(w, http.StatusUnauthorized, "Login failed. Username does not exist.")
 			return
 		}
 
@@ -301,21 +287,21 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		expectedPasswordHash := storedUserInfo.PwdHash
 		actualPasswordHash := hashPassword(password)
 		if expectedPasswordHash != actualPasswordHash {
-			writeHTTPNoRefreshResponse(w, http.StatusUnauthorized, "Login failed. Wrong password.")
+			util.WriteHTTPNoRefreshResponse(w, http.StatusUnauthorized, "Login failed. Wrong password.")
 			return
 		}
 
 		// Check if user account is activated
 		if !storedUserInfo.Activated {
-			writeHTTPNoRefreshResponse(w, http.StatusUnauthorized, "Login failed. Account not activated.")
+			util.WriteHTTPNoRefreshResponse(w, http.StatusUnauthorized, "Login failed. Account not activated.")
 			return
 		}
 
 		// Create a new random session token
-		sessionToken := getRandomStringBASE64()
+		sessionToken := util.GetRandomStringBASE64()
 
 		// Save the token in the session map
-		tokenMap[sessionToken] = username
+		globals.TokenMap[sessionToken] = username
 
 		// Finally, we set the client cookie for "session_token" as the session token we just generated
 		http.SetCookie(w, &http.Cookie{
@@ -325,7 +311,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 			Path:    "/",                            // we want this cookie to be sent along with every request
 		})
 
-		writeBodyNoRefresh(w, []byte("Login successful! Return to the <a href=\"/\">home page</a>."))
+		util.WriteBodyNoRefresh(w, []byte("Login successful! Return to the <a href=\"/\">home page</a>."))
 
 	default:
 		fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
@@ -333,18 +319,18 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 var noAuthNeededWhitelist = map[string]bool{
-	static_word: true,
-	login_word:  true,
-	signup_word: true,
+	"public_assets": true,
+	login_word:      true,
+	signup_word:     true,
 }
 
 func (c loginchecker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	firstpart := strings.Split(r.URL.Path, "/")[1]
-	writeHeaderNoCache(w)
+	util.WriteHeaderNoCache(w)
 	_, ok := noAuthNeededWhitelist[firstpart]
 	if !ok {
 		if !validateAuth(r) { // check cookie
-			writeHTTPNoRefreshResponse(w, http.StatusUnauthorized, "Not authorized. Please <a href=\"/login\">log in</a> or <a href=\"/signup\">sign up</a>.")
+			util.WriteHTTPNoRefreshResponse(w, http.StatusUnauthorized, "Not authorized. Please <a href=\"/login\">log in</a> or <a href=\"/signup\">sign up</a>.")
 			return
 		}
 	}

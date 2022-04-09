@@ -1,4 +1,4 @@
-package main
+package util
 
 import (
 	"crypto/rand"
@@ -10,32 +10,37 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/1f604/supersimplewiki/cmd/server/globals"
 )
 
-func writeHeaderNoCache(w http.ResponseWriter) {
+func WriteHeaderNoCache(w http.ResponseWriter) {
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate") // HTTP 1.1.
 	w.Header().Set("Pragma", "no-cache")                                   // HTTP 1.0.
 	w.Header().Set("Expires", "0")                                         // Proxies.
 }
 
-func writeBodyNoRefresh(w http.ResponseWriter, bytes []byte) {
+func WriteBodyNoRefresh(w http.ResponseWriter, bytes []byte) {
+	const noSubmitOnRefreshJS = `<script src="/public_assets/norefresh.js"></script>
+	`
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write([]byte(noSubmitOnRefreshJS))
 	w.Write(bytes)
 }
 
-func writeHTTPResponse(w http.ResponseWriter, errorcode int, msg string) {
+func WriteHTTPResponse(w http.ResponseWriter, errorcode int, msg string) {
 	w.WriteHeader(errorcode)
 	w.Write([]byte(msg))
 }
 
-func writeHTTPNoRefreshResponse(w http.ResponseWriter, errorcode int, msg string) {
+func WriteHTTPNoRefreshResponse(w http.ResponseWriter, errorcode int, msg string) {
 	w.WriteHeader(errorcode)
-	writeBodyNoRefresh(w, []byte(msg))
+	WriteBodyNoRefresh(w, []byte(msg))
 }
 
 // used for creating new session tokens
-func getRandomStringBASE64() string {
+func GetRandomStringBASE64() string {
 	c := 24
 	b := make([]byte, c)
 	_, err := rand.Read(b)
@@ -48,7 +53,7 @@ func getRandomStringBASE64() string {
 }
 
 // used for checking if text was modified
-func getSHA1sum(bytes []byte) string {
+func GetSHA1sum(bytes []byte) string {
 	h := sha1.New()
 	h.Write(bytes)
 	bs := h.Sum(nil)
@@ -56,7 +61,7 @@ func getSHA1sum(bytes []byte) string {
 }
 
 // used to check if file was modified while user was editing it
-func getSHA1sumOfFile(filename string) (string, error) {
+func GetSHA1sumOfFile(filename string) (string, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return "", err
@@ -92,4 +97,18 @@ func generateRandomFilename() string {
 		}
 		//println("Oh no! Filename already exists!")
 	}
+}
+
+// This function assumes the user is already logged in.
+func GetUsernameFromRequest(r *http.Request) string {
+	c, err := r.Cookie("session_token")
+	if err != nil {
+		log.Fatal("Failed to get session token")
+	}
+	sessionToken := c.Value
+	username, ok := globals.TokenMap[sessionToken]
+	if !ok {
+		log.Fatal("Failed to get username from session token")
+	}
+	return username
 }

@@ -10,7 +10,7 @@ Follow the instructions [here](https://go.dev/doc/install).
 
 Verify your install by checking that `go version` prints the version of go.
 
-## Step 2. Download this repo and compile hoedown. 
+## Step 2. Clone this repo and compile hoedown. 
 
 Follow these steps:
 

@@ -1,4 +1,5 @@
 **/*.txt
+**/*.md
 **/*.o
 **/*.obj
 **/*.exe
@@ -11,4 +12,3 @@
 **/libhoedown.a
 **/server
 !**/server/
-**/*.md

@@ -12,57 +12,62 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+
+	"github.com/1f604/supersimplewiki/cmd/server/editors"
+	"github.com/1f604/supersimplewiki/cmd/server/pagelib"
+	util "github.com/1f604/supersimplewiki/cmd/server/util"
 )
 
 const (
-	static_word  = "public"
 	login_word   = "login"
 	signup_word  = "signup"
-	os_page_path = "./pages/"
+	md2html_word = "md2html"
 	view_path    = "/view/"
 	edit_path    = "/edit/"
+	debug_path   = "/debug/"
 	update_path  = "/update/"
 	lock_path    = "/lock_page/"
 	login_path1  = "/" + login_word
 	login_path2  = "/" + login_word + "/"
 	signup_path1 = "/" + signup_word
 	signup_path2 = "/" + signup_word + "/"
-	static_path  = "/" + static_word + "/"
+	md2html_path = "/" + md2html_word + "/"
 )
 
-func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
-	p, err := loadPage(title)
-	if err != nil {
-		http.Redirect(w, r, edit_path+title, http.StatusFound)
+var validViewPath = regexp.MustCompile("^/(view)/([A-Za-z0-9_]+)$") // TODO: fix this regex.
+
+// the view handler needs its own logic to validate URL page ID due to the unique format
+func viewHandler(w http.ResponseWriter, r *http.Request) {
+	m := validViewPath.FindStringSubmatch(r.URL.Path)
+	if m == nil {
+		util.WriteHTTPNoRefreshResponse(w, 406, "Error: invalid page URL: wrong format.")
 		return
 	}
-	renderTemplate(w, r, "view", p)
-}
-
-var validPath = regexp.MustCompile("^/(edit|update|view)/([0-9]+)$")
-
-func wrapViewEditHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		m := validPath.FindStringSubmatch(r.URL.Path)
-		if m == nil {
-			writeHTTPNoRefreshResponse(w, 406, "Error: invalid URL format.")
-			return
-		}
-		fn(w, r, m[2])
+	pageID := m[2]
+	if !pagelib.CheckPageExists(pageID) { // TODO: Fix this to account for the different URL format.
+		util.WriteHTTPNoRefreshResponse(w, 404, "Error: wiki page ID not found.")
+		return
 	}
+
+	p, err := pagelib.LoadPage(pageID)
+	if err != nil {
+		http.Redirect(w, r, edit_path+pageID, http.StatusFound)
+		return
+	}
+	pagelib.RenderTemplate(w, r, "view", p)
 }
 
 func lockpageHandler(w http.ResponseWriter, r *http.Request) {
 	pageid := r.URL.Path[len(lock_path):]
-	extendEditLock(pageid, w, r)
+	pagelib.ExtendEditLock(pageid, w, r)
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		writeHTTPNoRefreshResponse(w, 404, "404 page not found")
+		util.WriteHTTPNoRefreshResponse(w, 404, "404 page not found")
 		return
 	}
-	writeHTTPNoRefreshResponse(w, 200, "This is the home page.")
+	util.WriteHTTPNoRefreshResponse(w, 200, "This is the home page.")
 }
 
 const (
@@ -90,18 +95,23 @@ func main() {
 	loadPasswordsHashesFromFile()
 	mux := http.NewServeMux()
 
-	mux.HandleFunc(view_path, wrapViewEditHandler(viewHandler))
-	mux.HandleFunc(edit_path, wrapViewEditHandler(editHandler))
-	mux.HandleFunc(update_path, wrapViewEditHandler(updateHandler))
 	mux.HandleFunc(lock_path, lockpageHandler)
 	mux.HandleFunc(login_path1, loginHandler)
 	mux.HandleFunc(login_path2, loginHandler)
 	mux.HandleFunc(signup_path1, signupHandler)
 	mux.HandleFunc(signup_path2, signupHandler)
+	mux.HandleFunc(md2html_path, md2htmlHandler)
+	mux.HandleFunc(view_path, viewHandler) // TODO: fix the viewHandler
+	mux.HandleFunc(update_path, pagelib.CheckPageLockedWrapper(pagelib.UpdateHandler))
+	mux.HandleFunc(edit_path, pagelib.CheckPageLockedWrapper(editors.MarkitupEditorHandler))
+	mux.HandleFunc(debug_path, pagelib.CheckPageLockedWrapper(editors.DebugEditorHandler))
 	mux.HandleFunc("/", rootHandler)
 
-	fs := http.FileServer(http.Dir(static_word))
-	mux.Handle(static_path, http.StripPrefix(static_path, fs))
+	pubfs := http.FileServer(http.Dir("public_assets"))
+	mux.Handle("/public_assets/", http.StripPrefix("/public_assets/", pubfs))
+
+	privfs := http.FileServer(http.Dir("private_assets"))
+	mux.Handle("/private_assets/", http.StripPrefix("/private_assets/", privfs))
 
 	log.Fatal(http.ListenAndServe(":8080", loginchecker{mux}))
 }

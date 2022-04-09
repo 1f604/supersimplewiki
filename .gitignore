@@ -1,2 +1,14 @@
-_*
-*.txt
+**/*.txt
+**/*.o
+**/*.obj
+**/*.exe
+**/hoedown
+**/hoedown.dll
+**/hoedown.exp
+**/hoedown.lib
+**/smartypants
+**/libhoedown.so*
+**/libhoedown.a
+**/server
+!**/server/
+**/*.md

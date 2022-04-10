@@ -112,3 +112,10 @@ func GetUsernameFromRequest(r *http.Request) string {
 	}
 	return username
 }
+
+func Create_dir_if_not_exists(path_to_dir string) {
+	err := os.MkdirAll(path_to_dir, os.ModePerm)
+	if err != nil {
+		log.Fatal("failed to create dir:", path_to_dir, err)
+	}
+}

@@ -3,14 +3,17 @@
 package editors
 
 import (
-	"io/ioutil"
 	"net/http"
+
+	"github.com/1f604/supersimplewiki/cmd/server/pagelib"
+	"github.com/1f604/supersimplewiki/cmd/server/util"
 )
 
-func DebugEditorHandler(w http.ResponseWriter, req *http.Request, title string) {
-	body, err := ioutil.ReadAll(req.Body)
+func DebugEditorHandler(w http.ResponseWriter, r *http.Request, title string) {
+	p, err := pagelib.LoadPage(title)
 	if err != nil {
-		panic(err)
+		util.WriteHTTPNoRefreshResponse(w, 404, "Error: wiki page ID not found.")
+		return
 	}
-	w.Write(body)
+	pagelib.RenderTemplate(w, r, "edit", p)
 }

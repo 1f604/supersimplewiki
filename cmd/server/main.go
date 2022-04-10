@@ -9,11 +9,10 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
-	"path/filepath"
 	"regexp"
 
 	"github.com/1f604/supersimplewiki/cmd/server/editors"
+	"github.com/1f604/supersimplewiki/cmd/server/globals"
 	"github.com/1f604/supersimplewiki/cmd/server/pagelib"
 	util "github.com/1f604/supersimplewiki/cmd/server/util"
 )
@@ -85,12 +84,8 @@ func main() {
 	go startUnixDomainServer()
 	fmt.Println("Unix domain server launched...")
 
-	// make sure the pages directory exists
-	newpath := filepath.Join(".", "pages")
-	err := os.MkdirAll(newpath, os.ModePerm)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// create the pages directory if it doesn't exist
+	util.Create_dir_if_not_exists(globals.OS_page_path)
 
 	loadPasswordsHashesFromFile()
 	mux := http.NewServeMux()
@@ -101,8 +96,8 @@ func main() {
 	mux.HandleFunc(signup_path1, signupHandler)
 	mux.HandleFunc(signup_path2, signupHandler)
 	mux.HandleFunc(md2html_path, md2htmlHandler)
-	mux.HandleFunc(view_path, viewHandler) // TODO: fix the viewHandler
-	mux.HandleFunc(update_path, pagelib.CheckPageLockedWrapper(pagelib.UpdateHandler))
+	mux.HandleFunc(view_path, viewHandler)                                             // TODO: fix the viewHandler
+	mux.HandleFunc(update_path, pagelib.CheckPageExistsWrapper(pagelib.UpdateHandler)) // we do the page lock check in the UpdateHandler itself.
 	mux.HandleFunc(edit_path, pagelib.CheckPageLockedWrapper(editors.MarkitupEditorHandler))
 	mux.HandleFunc(debug_path, pagelib.CheckPageLockedWrapper(editors.DebugEditorHandler))
 	mux.HandleFunc("/", rootHandler)

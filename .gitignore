@@ -1,5 +1,9 @@
+# User data
+/userdata
 **/*.txt
 **/*.md
+
+# Compiled binaries
 **/*.o
 **/*.obj
 **/*.exe

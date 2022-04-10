@@ -79,7 +79,7 @@ func releaseEditLock(pageid string) {
 // a page ID is a string of 6 random alphanumeric characters (uppercase, lowercase, and numbers)
 var validEditDebugUpdatePath = regexp.MustCompile("^/(edit|debug|update)/([A-Za-z0-9]{6})$")
 
-func checkPageExistsWrapper(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+func CheckPageExistsWrapper(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := validEditDebugUpdatePath.FindStringSubmatch(r.URL.Path)
 		if m == nil {
@@ -106,5 +106,5 @@ func CheckPageLockedWrapper(fn func(http.ResponseWriter, *http.Request, string))
 		}
 		fn(w, r, pageID)
 	}
-	return checkPageExistsWrapper(newfn)
+	return CheckPageExistsWrapper(newfn)
 }

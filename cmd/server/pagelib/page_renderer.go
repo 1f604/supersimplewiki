@@ -5,7 +5,9 @@
 package pagelib
 
 import (
+	"errors"
 	"html/template"
+	"log"
 	"net/http"
 	"os"
 
@@ -14,11 +16,21 @@ import (
 )
 
 func CheckPageExists(pageID string) bool {
-	return true // TODO: implement this
+	filename := globals.OS_page_path + pageID + ".md"
+
+	if _, err := os.Stat(filename); err == nil {
+		return true
+	} else if errors.Is(err, os.ErrNotExist) {
+		return false
+		// path/to/whatever does *not* exist
+	} else {
+		log.Fatal("CheckPageExists unexpected error: ", err)
+	}
+	return false
 }
 
 func LoadPage(title string) (*Page, error) {
-	filename := globals.OS_page_path + title + ".txt"
+	filename := globals.OS_page_path + title + ".md"
 	body, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err

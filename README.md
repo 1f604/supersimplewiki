@@ -1,3 +1,5 @@
+This project currently lives here: [https://gitlab.com/1f604_public/supersimplewiki](https://gitlab.com/1f604_public/supersimplewiki)
+
 # Installation
 
 ## Step 1. Install Go

@@ -1,5 +1,7 @@
 This project currently lives here: [https://gitlab.com/1f604_public/supersimplewiki](https://gitlab.com/1f604_public/supersimplewiki)
 
+Literally the only reason it's hosted on gitlab is because GitHub doesn't let you fork your own repo and I really need that feature.
+
 # Installation
 
 ## Step 1. Install Go

@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 
 	"github.com/1f604/supersimplewiki/cmd/server/globals"
 )
@@ -117,5 +118,13 @@ func Create_dir_if_not_exists(path_to_dir string) {
 	err := os.MkdirAll(path_to_dir, os.ModePerm)
 	if err != nil {
 		log.Fatal("failed to create dir:", path_to_dir, err)
+	}
+}
+
+func MatchRegex(s string, r *regexp.Regexp) ([]string, error) {
+	if !r.Match([]byte(s)) {
+		return nil, errors.New("Failed to match regex: " + r.String() + " to string: " + s)
+	} else {
+		return r.FindStringSubmatch(s), nil
 	}
 }

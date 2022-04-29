@@ -10,12 +10,12 @@ import (
 )
 
 func (p *Page) update() error {
-	filename := globals.OS_page_path + p.Title + ".txt"
+	filename := globals.OS_page_path + p.Title + ".md"
 	return os.WriteFile(filename, p.Body, 0600)
 }
 
 func UpdateHandler(w http.ResponseWriter, r *http.Request, title string) {
-	filename := globals.OS_page_path + title + ".txt"
+	filename := globals.OS_page_path + title + ".md"
 	actual_csum, err := util.GetSHA1sumOfFile(filename)
 	requestID := r.FormValue("requestID")
 

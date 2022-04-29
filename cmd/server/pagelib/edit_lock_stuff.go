@@ -81,8 +81,8 @@ var validEditDebugUpdatePath = regexp.MustCompile("^/(edit|debug|update)/([A-Za-
 
 func CheckPageExistsWrapper(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		m := validEditDebugUpdatePath.FindStringSubmatch(r.URL.Path)
-		if m == nil {
+		m, err := util.MatchRegex(r.URL.Path, validEditDebugUpdatePath)
+		if err != nil {
 			util.WriteHTTPNoRefreshResponse(w, 406, "Error: invalid page URL: wrong format.")
 			return
 		}

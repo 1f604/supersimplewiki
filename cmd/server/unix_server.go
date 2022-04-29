@@ -8,6 +8,8 @@ import (
 	"net"
 	"os"
 	"regexp"
+
+	"github.com/1f604/supersimplewiki/cmd/server/util"
 )
 
 const (
@@ -67,9 +69,8 @@ func handleClientMsg(conn net.Conn) {
 		response = "Failed to match activation request regex. The syntax is: activate username"
 		goto sendResponse
 	}
-	capturedGroups = activationRequestRegex.FindStringSubmatch(buf.String())
-
-	if len(capturedGroups) != 2 {
+	capturedGroups, err = util.MatchRegex(buf.String(), activationRequestRegex)
+	if err != nil {
 		response = "Invalid activation request"
 		goto sendResponse
 	}

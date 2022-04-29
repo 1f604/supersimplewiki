@@ -73,13 +73,10 @@ func activateUser(ptr *UserInfo, username_to_activate string) bool {
 		if len(line) < 2 {
 			continue
 		}
-		if !passwordRegex.Match([]byte(line)) { // this should never happen
+		capturedGroups, err := util.MatchRegex(line, passwordRegex)
+		if err != nil {
 			log.Println("ERROR: Line in password file failed to match regex to activate user.")
 			return false
-		}
-		capturedGroups := passwordRegex.FindStringSubmatch(line)
-		if len(capturedGroups) != 6 {
-			log.Fatal("Unexpected password file format.")
 		}
 		username := capturedGroups[1]
 		if username != username_to_activate {
@@ -122,12 +119,9 @@ func loadPasswordsHashesFromFile() {
 		if len(line) < 2 {
 			continue
 		}
-		if !passwordRegex.Match([]byte(line)) {
-			log.Fatal("Failed to match password regex")
-		}
-		capturedGroups := passwordRegex.FindStringSubmatch(line)
-		if len(capturedGroups) != 6 {
-			log.Fatal("Unexpected password file format.")
+		capturedGroups, err := util.MatchRegex(line, passwordRegex)
+		if err != nil {
+			log.Fatal("Line in password file failed to match password regex")
 		}
 		username := capturedGroups[1]
 		pwdhash := capturedGroups[2]

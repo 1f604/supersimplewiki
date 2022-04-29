@@ -1,7 +1,10 @@
 <link rel="stylesheet" href="/public_assets/editpage.css">
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<!-- TODO: Make this URL local. -->
 
 <script>
+// var g_pageID = this variable is set from serverside
+
 function genHexString(len) {
     const hex = '0123456789abcdef';
     let output = '';
@@ -15,7 +18,7 @@ function genHexString(len) {
 
 function show_error_message(data, textStatus, jqXHR, errorThrown){
     $('.failmsg').remove();
-    $('#emptydiv').append(`
+    $('#displayErrorMsgDiv').append(`
     <div class="failmsg">
         ERROR: Update request failed.</br>
         Data: ${data}</br>
@@ -37,7 +40,7 @@ function bind_function_to_button() {
         $.ajax
         ({
             type: "POST",
-            url: '/update/{{.Title}}',
+            url: `/update/${g_pageID}`,
             //contentType: "application/json",
             data: {
                body: inputVal,
@@ -47,7 +50,7 @@ function bind_function_to_button() {
         })
         .done(function(data, textStatus, jqXHR) {
             if (data === expected_response) { // request successful
-                location.href = "/view/{{.Title}}";
+                location.href = `/view/${g_pageID}`;
             } else { // request failed
                 show_error_message(data, textStatus, jqXHR, "");
             }
@@ -60,7 +63,7 @@ function bind_function_to_button() {
 
 function extend_page_edit_lock(){
  $.ajax({
-  url: '/lock_page/{{.Title}}',
+  url: `/lock_page/${g_pageID}`,
   type: 'get',
   success: function(response){
    // Perform operation on the return value
@@ -74,14 +77,3 @@ $(document).ready(function(){
  bind_function_to_button();
 });
 </script>
-
-<h1>Editing {{.Title}}</h1>
-
-<p>You are currently logged in as: {{.Username}}</p>
-
-<!-- <form action="/update/{{.Title}}" method="POST"> -->
-
-<div><textarea id="bodyfield" rows="20" cols="80">{{printf "%s" .Body}}</textarea></div>
-<div><input type="hidden" id="hidden_csum" value="{{.Checksum}}" /></div>
-<div id = "emptydiv"></div>
-<div> <button id = "btnSubmit" type="button">Update</button></div>

@@ -5,6 +5,7 @@ package editors
 import (
 	"net/http"
 
+	"github.com/1f604/supersimplewiki/cmd/server/globals"
 	"github.com/1f604/supersimplewiki/cmd/server/pagelib"
 	"github.com/1f604/supersimplewiki/cmd/server/util"
 )
@@ -15,5 +16,5 @@ func DebugEditorHandler(w http.ResponseWriter, r *http.Request, title string) {
 		util.WriteHTTPNoRefreshResponse(w, 404, "Error: wiki page ID not found.")
 		return
 	}
-	pagelib.RenderTemplate(w, r, "edit", p)
+	pagelib.RenderHTMLPage(w, r, globals.ENUM_DEBUGPAGE, p)
 }

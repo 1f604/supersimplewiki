@@ -6,13 +6,12 @@ package pagelib
 
 import (
 	"errors"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/1f604/supersimplewiki/cmd/server/globals"
-	"github.com/1f604/supersimplewiki/cmd/server/util"
+	util "github.com/1f604/supersimplewiki/cmd/server/util"
 )
 
 func CheckPageExists(pageID string) bool {
@@ -29,42 +28,92 @@ func CheckPageExists(pageID string) bool {
 	return false
 }
 
-func LoadPage(title string) (*Page, error) {
-	filename := globals.OS_page_path + title + ".md"
+func LoadPageSource(pageID string) (*EditPageStruct, error) {
+	filename := globals.OS_page_path + pageID + ".md"
 	body, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	return &Page{Title: title, Body: body, HTML: template.HTML(body)}, nil
-}
-
-var templates = template.Must(template.ParseFiles("private_assets/editors/debug/edit.html", "./private_assets/view.html"))
-
-type Page struct {
-	Title string
-	Body  []byte
-	HTML  template.HTML
-}
-
-type PageToRender struct {
-	Title    string
-	Body     []byte
-	HTML     template.HTML
-	Username string
-	Checksum string
-}
-
-func RenderTemplate(w http.ResponseWriter, r *http.Request, tmpl string, p *Page) {
-	p2r := PageToRender{
-		Title:    p.Title,
-		Body:     p.Body,
-		HTML:     p.HTML,
-		Username: util.GetUsernameFromRequest(r),
-		Checksum: util.GetSHA1sum(p.Body),
+	result := EditPageStruct{
+		PageID:    pageID,
+		Source:    body,
+		PageTitle: pageID,
+		Checksum:  util.GetSHA1sum(body),
 	}
-	w.Header().Set("Content-Type", "text/html") // apparently this is required if your HTML is not valid.
-	err := templates.ExecuteTemplate(w, tmpl+".html", p2r)
+	return &result, nil
+}
+
+func LoadRenderedPage(pageID string) (*ViewPageStruct, error) {
+	filename := globals.OS_page_path + pageID + ".html"
+	body, err := os.ReadFile(filename)
 	if err != nil {
-		util.WriteHTTPNoRefreshResponse(w, http.StatusInternalServerError, err.Error())
+		return nil, err
 	}
+	result := ViewPageStruct{
+		PageID:    pageID,
+		HTML:      body,
+		PageTitle: pageID,
+	}
+	return &result, nil
+}
+
+var pageTitleDict = map[int]string{
+	globals.ENUM_EDITPAGE:  "Editing page ",
+	globals.ENUM_DEBUGPAGE: "Editing page ",
+	globals.ENUM_VIEWPAGE:  "Viewing page ",
+}
+
+func RenderHTMLPage(w http.ResponseWriter, r *http.Request, page_type int) {
+	/*
+		p2r := PageToRender{
+			Title:    p.Title,
+			Body:     p.Body,
+			HTML:     p.HTML,
+			Username: util.GetUsernameFromRequest(r),
+			Checksum: ,
+		}*/
+	w.Header().Set("Content-Type", "text/html") // apparently this is required if your HTML is not valid.
+	var result []byte
+	var contents []byte
+
+	headertags := generatePageHeadTags(pageTitleDict[page_type] + p.Title)
+	header := generateLoggedInPageHeader(r)
+	result = append(result, headertags...)
+	result = append(result, header...)
+
+	switch page_type {
+	case globals.ENUM_VIEWPAGE:
+		contents = RenderViewPage(w, r, p)
+	case globals.ENUM_EDITPAGE:
+		contents = RenderEditPage(w, r, p)
+	case globals.ENUM_DEBUGPAGE:
+		contents = RenderDebugPage(w, r, p)
+	}
+
+	result = append(result, contents...)
+
+	w.Write(result)
+}
+
+func RenderViewPage(w http.ResponseWriter, r *http.Request, p *Page) []byte {
+	vps := ViewPageStruct{
+		PageID:    p.PageID,
+		PageTitle: p.Title,
+		HTML:      p.Body,
+	}
+	return generateViewPage(r, &vps)
+}
+
+func RenderDebugPage(w http.ResponseWriter, r *http.Request, p *Page) []byte {
+	eps := EditPageStruct{
+		PageID:    p.PageID,
+		PageTitle: p.Title,
+		Source:    p.Body,
+		Checksum:  util.GetSHA1sum(p.Body),
+	}
+	return generateDebugEditPage(r, &eps)
+}
+
+func RenderEditPage(w http.ResponseWriter, r *http.Request, p *Page) []byte {
+	return []byte("NULL")
 }

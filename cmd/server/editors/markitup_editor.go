@@ -4,9 +4,22 @@ package editors
 
 import (
 	"net/http"
+
+	"github.com/1f604/supersimplewiki/cmd/server/globals"
+	"github.com/1f604/supersimplewiki/cmd/server/pagelib"
+	"github.com/1f604/supersimplewiki/cmd/server/util"
 )
 
-func MarkitupEditorHandler(w http.ResponseWriter, req *http.Request, title string) {
+func MarkitupEditorHandler(w http.ResponseWriter, r *http.Request, title string) {
+
+	pagelib.UnifiedViewEditHandler(w, r, globals.ENUM_EDITPAGE)
+
+	p, err := pagelib.LoadPage(title)
+	if err != nil {
+		util.WriteHTTPNoRefreshResponse(w, 404, "Error: wiki page ID not found.")
+		return
+	}
+	pagelib.RenderHTMLPage(w, r, globals.ENUM_EDITPAGE, p)
 
 	// TODO: Fix this.
 	/*
